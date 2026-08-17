@@ -1,0 +1,45 @@
+name: reusable artifact publication
+
+on:
+  workflow_call:
+    inputs:
+      package_command:
+        description: Command that creates the artifact; blank uploads existing files
+        required: false
+        default: ""
+        type: string
+      artifact_name:
+        description: Uploaded artifact name
+        required: true
+        type: string
+      artifact_path:
+        description: Newline-separated paths to upload
+        required: true
+        type: string
+      retention_days:
+        description: Artifact retention in days
+        required: false
+        default: 30
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Package artifact
+        if: inputs.package_command != ''
+        run: ${{ inputs.package_command }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.artifact_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}

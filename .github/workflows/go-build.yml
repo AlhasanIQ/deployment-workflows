@@ -1,0 +1,89 @@
+name: reusable Go build
+
+on:
+  workflow_call:
+    inputs:
+      go_version:
+        description: Go toolchain version
+        required: true
+        type: string
+      bun_version:
+        description: Optional Bun toolchain version for mixed Go/Bun projects
+        required: false
+        default: ""
+        type: string
+      pre_build_command:
+        description: Optional preparation command
+        required: false
+        default: ""
+        type: string
+      test_command:
+        description: Test command
+        required: false
+        default: go test ./...
+        type: string
+      vet_command:
+        description: Vet or lint command
+        required: false
+        default: go vet ./...
+        type: string
+      build_command:
+        description: Command that creates the deployable artifact
+        required: true
+        type: string
+      artifact_name:
+        description: Uploaded artifact name
+        required: true
+        type: string
+      artifact_path:
+        description: Newline-separated paths to upload
+        required: true
+        type: string
+      retention_days:
+        description: Artifact retention in days
+        required: false
+        default: 30
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ inputs.go_version }}
+          cache: true
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: inputs.bun_version != ''
+        with:
+          bun-version: ${{ inputs.bun_version }}
+
+      - name: Prepare
+        if: inputs.pre_build_command != ''
+        run: ${{ inputs.pre_build_command }}
+
+      - name: Test
+        if: inputs.test_command != ''
+        run: ${{ inputs.test_command }}
+
+      - name: Vet
+        if: inputs.vet_command != ''
+        run: ${{ inputs.vet_command }}
+
+      - name: Build artifact
+        run: ${{ inputs.build_command }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.artifact_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}
